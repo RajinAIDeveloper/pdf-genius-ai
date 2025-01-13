@@ -4,9 +4,6 @@ import PDFProcessor from '@/components/PDFProcessor';
 
 
 const RAGApp = () => {
-
-  
-
   return (
     <div>
       <PDFProcessor />
