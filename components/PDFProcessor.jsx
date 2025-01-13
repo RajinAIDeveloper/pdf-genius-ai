@@ -72,19 +72,117 @@ const PDFProcessor = () => {
   const extractMetadata = async (pdf) => {
     try {
       const metadata = await pdf.getMetadata();
-      return {
-        title: metadata.info?.Title || null,
-        author: metadata.info?.Author || null,
-        subject: metadata.info?.Subject || null,
-        keywords: metadata.info?.Keywords || null,
-        creator: metadata.info?.Creator || null,
-        creationDate: metadata.info?.CreationDate ? new Date(metadata.info.CreationDate) : null,
-        modificationDate: metadata.info?.ModDate ? new Date(metadata.info.ModDate) : null,
-        producer: metadata.info?.Producer || null,
+      const info = metadata?.info || {};
+      
+      // Parse PDF dates which can come in different formats
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        
+        // Handle different PDF date formats
+        try {
+          // Handle PDF date format with 'D:' prefix
+          if (dateStr.startsWith('D:')) {
+            const cleaned = dateStr.substring(2);
+            const year = cleaned.substring(0, 4);
+            const month = cleaned.substring(4, 6);
+            const day = cleaned.substring(6, 8);
+            const hour = cleaned.substring(8, 10) || '00';
+            const minute = cleaned.substring(10, 12) || '00';
+            const second = cleaned.substring(12, 14) || '00';
+            
+            // Validate date components
+            if (isNaN(Date.parse(`${year}-${month}-${day}`))) {
+              return null;
+            }
+            
+            return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+          }
+          
+          // Try parsing as regular date string
+          const regularDate = new Date(dateStr);
+          if (!isNaN(regularDate.getTime())) {
+            return regularDate;
+          }
+          
+          // Try parsing Unix timestamp
+          const timestamp = parseInt(dateStr);
+          if (!isNaN(timestamp)) {
+            return new Date(timestamp * 1000);
+          }
+          
+          return null;
+        } catch (e) {
+          console.warn('Failed to parse date:', dateStr, e);
+          return null;
+        }
       };
+
+      // Extract text-based metadata with fallbacks
+      const extractText = (value) => {
+        if (!value) return null;
+        
+        // Handle string values
+        if (typeof value === 'string') {
+          const cleaned = value.trim();
+          // Filter out placeholder or default values
+          if (cleaned === 'DOMINANT' || cleaned === 'Unknown' || cleaned === 'N/A') {
+            return null;
+          }
+          return cleaned || null;
+        }
+        
+        // Handle binary data
+        if (value instanceof Uint8Array) {
+          try {
+            const text = new TextDecoder().decode(value).trim();
+            return text || null;
+          } catch (e) {
+            return null;
+          }
+        }
+        
+        // Handle potential object values
+        if (typeof value === 'object' && value !== null) {
+          try {
+            const text = JSON.stringify(value).trim();
+            return text !== '{}' ? text : null;
+          } catch (e) {
+            return null;
+          }
+        }
+        
+        return null;
+      };
+
+      const metadataObj = {
+        title: extractText(info.Title) || extractText(info.Subject) || null,
+        author: extractText(info.Author) || null,
+        subject: extractText(info.Subject) || null,
+        keywords: extractText(info.Keywords) || null,
+        creator: extractText(info.Creator) || null,
+        producer: extractText(info.Producer) || null,
+        creationDate: parseDate(info.CreationDate),
+        modificationDate: parseDate(info.ModDate),
+        // Add additional metadata fields
+        pageCount: pdf.numPages,
+        isEncrypted: pdf.isEncrypted || false,
+        fileSize: null, // Will be set later
+        permissions: pdf.permissions || null,
+        language: extractText(info.Language) || null,
+        pdfVersion: `${pdf.version || 'Unknown'}`
+      };
+
+      // Filter out null values
+      return Object.fromEntries(
+        Object.entries(metadataObj).filter(([_, value]) => value != null)
+      );
     } catch (err) {
       console.warn('Error extracting metadata:', err);
-      return {};
+      // Return basic metadata even if extraction fails
+      return {
+        pageCount: pdf.numPages,
+        pdfVersion: pdf.version || 'Unknown'
+      };
     }
   };
 
