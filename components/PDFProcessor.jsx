@@ -69,116 +69,130 @@ const PDFProcessor = () => {
     loadPdfJs();
   }, []);
 
-  const extractMetadata = async (pdf) => {
+  const extractMetadata = async (pdf, initialText = '') => {
     try {
       const metadata = await pdf.getMetadata();
       const info = metadata?.info || {};
       
-      // Parse PDF dates which can come in different formats
+      // First perform content analysis
+      const analyzeContent = (text) => {
+        // Extract potential title from first substantial line
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        const potentialTitle = lines[0]?.trim().split(/[.!?]/)?.shift()?.trim() || null;
+        
+        // Extract keywords using frequency analysis
+        const words = text.toLowerCase()
+          .replace(/[^\w\s]/g, '')
+          .split(/\s+/)
+          .filter(word => 
+            word.length > 3 && 
+            !['this', 'that', 'then', 'than', 'with', 'from'].includes(word)
+          );
+        
+        const wordFrequency = {};
+        words.forEach(word => {
+          wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+        });
+        
+        // Get top keywords
+        const keywords = Object.entries(wordFrequency)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 10)
+          .map(([word]) => word);
+        
+        // Detect document type
+        const textLower = text.toLowerCase();
+        const docType = 
+          textLower.includes('financial') && textLower.includes('statement') ? 'Financial Document' :
+          textLower.includes('strategy') ? 'Strategy Document' :
+          textLower.includes('audit') ? 'Audit Document' :
+          textLower.includes('report') ? 'Report' :
+          'General Document';
+        
+        return {
+          detectedTitle: potentialTitle,
+          keywords,
+          documentType: docType,
+          contentFeatures: {
+            hasFormulas: /[=+\-*/(){}[\]]+/.test(text),
+            hasTables: text.includes('|') || /\|\s*\w+\s*\|/.test(text),
+            hasLists: /^\s*[-•*]\s+/m.test(text) || /^\s*\d+\.\s+/m.test(text)
+          }
+        };
+      };
+
+      // Perform content analysis
+      const contentAnalysis = analyzeContent(initialText);
+      
+      // Parse dates
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
-        
-        // Handle different PDF date formats
         try {
-          // Handle PDF date format with 'D:' prefix
           if (dateStr.startsWith('D:')) {
             const cleaned = dateStr.substring(2);
-            const year = cleaned.substring(0, 4);
-            const month = cleaned.substring(4, 6);
-            const day = cleaned.substring(6, 8);
-            const hour = cleaned.substring(8, 10) || '00';
-            const minute = cleaned.substring(10, 12) || '00';
-            const second = cleaned.substring(12, 14) || '00';
-            
-            // Validate date components
-            if (isNaN(Date.parse(`${year}-${month}-${day}`))) {
-              return null;
-            }
-            
-            return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+            return new Date(
+              cleaned.substring(0, 4),
+              parseInt(cleaned.substring(4, 6)) - 1,
+              cleaned.substring(6, 8),
+              cleaned.substring(8, 10) || '00',
+              cleaned.substring(10, 12) || '00',
+              cleaned.substring(12, 14) || '00'
+            );
           }
-          
-          // Try parsing as regular date string
-          const regularDate = new Date(dateStr);
-          if (!isNaN(regularDate.getTime())) {
-            return regularDate;
-          }
-          
-          // Try parsing Unix timestamp
-          const timestamp = parseInt(dateStr);
-          if (!isNaN(timestamp)) {
-            return new Date(timestamp * 1000);
-          }
-          
-          return null;
+          return new Date(dateStr);
         } catch (e) {
-          console.warn('Failed to parse date:', dateStr, e);
+          console.warn('Failed to parse date:', dateStr);
           return null;
         }
       };
 
-      // Extract text-based metadata with fallbacks
+      // Extract text
       const extractText = (value) => {
         if (!value) return null;
-        
-        // Handle string values
         if (typeof value === 'string') {
           const cleaned = value.trim();
-          // Filter out placeholder or default values
-          if (cleaned === 'DOMINANT' || cleaned === 'Unknown' || cleaned === 'N/A') {
-            return null;
-          }
           return cleaned || null;
         }
-        
-        // Handle binary data
         if (value instanceof Uint8Array) {
           try {
-            const text = new TextDecoder().decode(value).trim();
-            return text || null;
+            return new TextDecoder().decode(value).trim() || null;
           } catch (e) {
             return null;
           }
         }
-        
-        // Handle potential object values
-        if (typeof value === 'object' && value !== null) {
-          try {
-            const text = JSON.stringify(value).trim();
-            return text !== '{}' ? text : null;
-          } catch (e) {
-            return null;
-          }
-        }
-        
         return null;
       };
 
+      // Build metadata object
       const metadataObj = {
-        title: extractText(info.Title) || extractText(info.Subject) || null,
-        author: extractText(info.Author) || null,
-        subject: extractText(info.Subject) || null,
-        keywords: extractText(info.Keywords) || null,
-        creator: extractText(info.Creator) || null,
-        producer: extractText(info.Producer) || null,
+        title: extractText(info.Title) || contentAnalysis.detectedTitle,
+        author: extractText(info.Author),
+        subject: extractText(info.Subject),
+        keywords: info.Keywords ? extractText(info.Keywords).split(',').map(k => k.trim())
+                               : contentAnalysis.keywords,
+        creator: extractText(info.Creator),
+        producer: extractText(info.Producer),
         creationDate: parseDate(info.CreationDate),
         modificationDate: parseDate(info.ModDate),
-        // Add additional metadata fields
+        documentType: contentAnalysis.documentType,
+        contentFeatures: contentAnalysis.contentFeatures,
         pageCount: pdf.numPages,
         isEncrypted: pdf.isEncrypted || false,
-        fileSize: null, // Will be set later
-        permissions: pdf.permissions || null,
-        language: extractText(info.Language) || null,
-        pdfVersion: `${pdf.version || 'Unknown'}`
+        pdfVersion: pdf.version || 'Unknown',
+        securityFeatures: {
+          isEncrypted: pdf.isEncrypted || false,
+          hasDigitalSignature: Boolean(pdf.signatures?.length),
+          encryptionMethod: pdf.encryptionMethod || null
+        }
       };
 
       // Filter out null values
       return Object.fromEntries(
         Object.entries(metadataObj).filter(([_, value]) => value != null)
       );
+
     } catch (err) {
-      console.warn('Error extracting metadata:', err);
-      // Return basic metadata even if extraction fails
+      console.error('Error extracting metadata:', err);
       return {
         pageCount: pdf.numPages,
         pdfVersion: pdf.version || 'Unknown'
