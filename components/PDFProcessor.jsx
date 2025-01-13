@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Upload, 
   FileText, 
@@ -28,8 +28,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import GeminiService from '@/services/GeminiService';
+import { Activity } from 'lucide-react';
+import EmbeddingsPreview from '@/components/EmbeddingsPreview';
+
 const PDFProcessor = () => {
-  const [isDragging, setIsDragging] = useState(false);
+   const [isDragging, setIsDragging] = useState(false);
   const [batchProcessing, setBatchProcessing] = useState(true);
   const dropZoneRef = useRef(null);
   const [files, setFiles] = useState([]);
@@ -41,6 +45,9 @@ const PDFProcessor = () => {
   const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef(null);
   const [pdfjsLib, setPdfjsLib] = useState(null);
+
+  const geminiService = useMemo(() => new GeminiService(), []);
+
 
   useEffect(() => {
     const loadPdfJs = async () => {
@@ -220,13 +227,13 @@ const PDFProcessor = () => {
       console.log('PDF.js not loaded yet');
       return;
     }
-
+  
     try {
       setProcessingStatus(prev => ({
         ...prev,
         [file.name]: 'processing'
       }));
-
+  
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       
@@ -239,52 +246,68 @@ const PDFProcessor = () => {
           }
         }));
       };
-
+  
       const pdf = await loadingTask.promise;
-      const metadata = await extractMetadata(pdf);
-      const numPages = pdf.numPages;
       let fullText = '';
       
-      for (let i = 1; i <= numPages; i++) {
+      // Extract text from all pages
+      for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map(item => item.str).join(' ');
         fullText += pageText + '\n';
-
+  
         setProgressMap(prev => ({
           ...prev,
           [file.name]: {
             ...prev[file.name],
-            pages: Math.round((i / numPages) * 100)
+            pages: Math.round((i / pdf.numPages) * 100)
           }
         }));
       }
-
-      const chunks = createChunks(fullText, chunkSize);
+  
+      // Get basic metadata
+      const basicMetadata = await extractMetadata(pdf, fullText);
+  
+      // Use Gemini to enhance metadata
+      const enhancedMetadata = await geminiService.enhanceMetadata(fullText);
+      const metadata = { ...basicMetadata, ...enhancedMetadata };
+  
+      // Use Gemini for smart chunking
+      const chunks = await geminiService.smartChunk(fullText);
+  
+      // Generate embeddings for each chunk
+      const chunksWithEmbeddings = await Promise.all(
+        chunks.map(async (chunk) => {
+          const embedding = await geminiService.generateEmbeddings(chunk.text);
+          return { ...chunk, embedding };
+        })
+      );
+  
       const processedText = {
         text: fullText,
-        chunks,
-        numPages,
+        chunks: chunksWithEmbeddings,
+        numPages: pdf.numPages,
         metadata,
         stats: {
           wordCount: fullText.split(/\s+/).length,
           characterCount: fullText.length,
-          pageCount: numPages,
+          pageCount: pdf.numPages,
           chunkCount: chunks.length,
           averageChunkSize: Math.floor(fullText.split(/\s+/).length / chunks.length)
         }
       };
-
+  
       setProcessedData(prev => ({
         ...prev,
         [file.name]: processedText
       }));
-
+  
       setProcessingStatus(prev => ({
         ...prev,
         [file.name]: 'completed'
       }));
-
+  
     } catch (err) {
       console.error('Error processing PDF:', err);
       
@@ -296,7 +319,7 @@ const PDFProcessor = () => {
         }));
         return await processFile(file, retryCount + 1);
       }
-
+  
       setProcessingStatus(prev => ({
         ...prev,
         [file.name]: 'error'
@@ -794,44 +817,64 @@ const PDFProcessor = () => {
                     <MetadataDisplay metadata={processedData[file.name].metadata} />
 
                     {processedData[file.name].chunks?.length > 0 && (
-                      <div className="border-t pt-3">
+                        <div className="border-t pt-3">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-sm font-medium">Text Chunks</h4>
-                          <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-medium">Text Chunks & Embeddings</h4>
+                        <div className="flex items-center gap-2">
                             <Dialog>
-                              <DialogTrigger asChild>
+                            <DialogTrigger asChild>
                                 <button
-                                  className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 flex items-center gap-1"
+                                className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 flex items-center gap-1"
                                 >
-                                  <Eye className="h-3 w-3" />
-                                  Preview
+                                <Eye className="h-3 w-3" />
+                                Text Preview
                                 </button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                                 <DialogHeader>
-                                  <DialogTitle>
+                                <DialogTitle>
                                     Text Chunks - {file.name}
-                                  </DialogTitle>
+                                </DialogTitle>
                                 </DialogHeader>
                                 <ChunkPreview chunks={processedData[file.name].chunks} />
-                              </DialogContent>
+                            </DialogContent>
+                            </Dialog>
+
+                            <Dialog>
+                            <DialogTrigger asChild>
+                                <button
+                                className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 flex items-center gap-1"
+                                >
+                                <Activity className="h-3 w-3" />
+                                Embeddings
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                <DialogTitle>
+                                    Vector Embeddings - {file.name}
+                                </DialogTitle>
+                                </DialogHeader>
+                                <EmbeddingsPreview chunks={processedData[file.name].chunks} />
+                            </DialogContent>
                             </Dialog>
                             
                             <button
-                              onClick={() => exportProcessedData(file.name)}
-                              className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 flex items-center gap-1"
-                              title="Export processed data"
+                            onClick={() => exportProcessedData(file.name)}
+                            className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 flex items-center gap-1"
+                            title="Export processed data"
                             >
-                              <Download className="h-3 w-3" />
-                              Export
+                            <Download className="h-3 w-3" />
+                            Export
                             </button>
-                          </div>
+                        </div>
                         </div>
                         <div className="text-xs text-gray-500">
-                          {processedData[file.name].chunks.length} chunks created with approximately {chunkSize} words each
+                        {processedData[file.name].chunks.length} chunks created with approximately {chunkSize} words each
                         </div>
-                      </div>
+                        </div>
                     )}
+                    
                   </div>
                 )}
                 </div>

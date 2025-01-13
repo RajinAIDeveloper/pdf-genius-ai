@@ -12,10 +12,10 @@ const GeminiChat = ({ processedData }) => {
 
   const generateEmbeddings = async (text) => {
     try {
-      const response = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_OPENROUTER_API_URL}/run`, {
         method: "POST",
         headers: {
-          "Authorization": "Bearer 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",
+          "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
           "HTTP-Referer": window.location.href,
           "Content-Type": "application/json"
         },
