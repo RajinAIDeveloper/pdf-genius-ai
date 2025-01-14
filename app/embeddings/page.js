@@ -13,9 +13,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import PDFProcessor from '@/components/PDFProcessor';
-import VectorStoreMerger from '@/components/VectorStoreMerger';
-import EmbeddingsPreview from '@/components/EmbeddingsPreview';
 import EmbeddingConverter from '@/components/ui/EmbeddingConverter';
 
 
@@ -155,18 +152,16 @@ const NeuralBackground = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
-      <canvas
-        ref={canvasRef}
-        className="absolute min-w-full min-h-full"
-        style={{ 
-          background: 'linear-gradient(to bottom right, #1e1b4b, #4c1d95, #1e1b4b)',
-          width: '100%',
-          height: '100%'
-        }}
-      />
-      <div className="absolute inset-0 backdrop-blur-sm" />
-    </div>
+    <div className="fixed inset-0 w-screen h-screen -z-10 overflow-hidden touch-none">
+    <canvas
+      ref={canvasRef}
+      className="absolute top-0 left-0 w-full h-full object-cover"
+      style={{ 
+        background: 'linear-gradient(to bottom right, #1e1b4b, #4c1d95, #1e1b4b)',
+      }}
+    />
+    <div className="absolute inset-0 backdrop-blur-[1px] sm:backdrop-blur-sm" />
+  </div>
   );
 };
 
@@ -190,16 +185,17 @@ const UploadArea = ({ onFileSelect }) => {
   };
 
   return (
-    <motion.div
+    <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
+      className="w-full px-2 sm:px-0"
     >
       <Card className="bg-white/5 border-purple-500/20 backdrop-blur-lg">
-        <CardContent>
+        <CardContent className="p-3 sm:p-6">
           <motion.div
-            className={`relative mt-4 h-64 rounded-lg border-2 border-dashed 
-              ${isDragging ? 'border-purple-400' : 'border-gray-600'} 
+            className={`relative mt-2 sm:mt-4 h-48 sm:h-64 rounded-lg border-2 border-dashed
+              ${isDragging ? 'border-purple-400' : 'border-gray-600'}
               transition-colors duration-300`}
             onDragOver={(e) => {
               handleDrag(e);
@@ -219,23 +215,23 @@ const UploadArea = ({ onFileSelect }) => {
               accept=".pdf"
               onChange={(e) => onFileSelect(e.target.files[0])}
             />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
               <motion.div
                 whileHover={{ scale: 1.1 }}
-                className="p-4 rounded-full bg-purple-500/10 mb-4"
+                className="p-3 sm:p-4 rounded-full bg-purple-500/10 mb-3 sm:mb-4"
               >
-                <Upload className="h-10 w-10 text-purple-400" />
+                <Upload className="h-8 w-8 sm:h-10 sm:w-10 text-purple-400" />
               </motion.div>
-              <p className="text-gray-300 text-lg mb-2">
-                Drag & drop your PDF here
+              <p className="text-gray-300 text-base sm:text-lg mb-1 sm:mb-2">
+                {window.innerWidth < 640 ? 'Upload your PDF' : 'Drag & drop your PDF here'}
               </p>
-              <p className="text-gray-400 text-sm mb-4">
+              <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4">
                 or
               </p>
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
-                className="bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30"
+                className="bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30 text-sm sm:text-base py-1.5 px-3 sm:px-4 h-auto"
               >
                 Browse Files
               </Button>
@@ -252,25 +248,26 @@ const TrainingStatus = ({ file, progress }) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
+    className="w-full px-2 sm:px-0"
   >
     <Card className="bg-white/5 border-purple-500/20 backdrop-blur-lg">
-      <CardHeader>
-        <CardTitle className="text-white">Training Progress</CardTitle>
-        <CardDescription className="text-gray-300">
+      <CardHeader className="p-4 sm:p-6 space-y-1 sm:space-y-2">
+        <CardTitle className="text-lg sm:text-xl text-white">Training Progress</CardTitle>
+        <CardDescription className="text-sm sm:text-base text-gray-300 truncate">
           Processing: {file?.name}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Progress value={progress} className="h-2 bg-purple-500/20" />
-          <div className="flex items-center justify-between text-sm text-gray-300">
+      <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+        <div className="space-y-3 sm:space-y-4">
+          <Progress value={progress} className="h-1.5 sm:h-2 bg-purple-500/20" />
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-300">
             <span>Processing PDF</span>
             <span>{progress}%</span>
           </div>
-          <Alert className="bg-purple-500/10 border-purple-500/20">
-            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-            <AlertTitle>Training in Progress</AlertTitle>
-            <AlertDescription>
+          <Alert className="bg-purple-500/10 border-purple-500/20 p-3 sm:p-4">
+            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-purple-400" />
+            <AlertTitle className="text-sm sm:text-base font-medium">Training in Progress</AlertTitle>
+            <AlertDescription className="text-xs sm:text-sm mt-1 sm:mt-2">
               Your document is being processed. This may take a few minutes.
             </AlertDescription>
           </Alert>
@@ -285,17 +282,17 @@ const SettingsPanel = () => (
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ duration: 0.5 }}
-    className="col-span-1"
+    className="w-full px-2 sm:px-0"
   >
     <Card className="bg-white/5 border-purple-500/20 backdrop-blur-lg h-full">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Settings className="h-5 w-5" />
+      <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+        <CardTitle className="text-white flex items-center gap-1.5 sm:gap-2 text-lg sm:text-xl">
+          <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
           Training Settings
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="p-4 sm:p-6 pt-2 sm:pt-3">
+        <div className="space-y-3 sm:space-y-4">
           {/* Add your settings controls here */}
         </div>
       </CardContent>
@@ -323,41 +320,43 @@ const TrainingPage = () => {
       <NeuralBackground />
       
       <motion.div 
-        className="container mx-auto px-4 py-8 relative"
+        className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
-        <motion.div 
-          className="mb-8 flex items-center"
+        <motion.div
+          className="mb-4 sm:mb-8 flex items-center"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
           <Button
             variant="ghost"
-            className="text-gray-300"
+            className="text-gray-300 h-8 sm:h-10 px-2 sm:px-4 text-sm sm:text-base"
             onClick={() => router.push('/')}
           >
-            <ChevronLeft className="h-5 w-5 mr-2" />
-            Back to Home
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Back to Home</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         </motion.div>
 
-        <motion.div 
-          className="mb-8"
+        <motion.div
+          className="mb-6 sm:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 inline-block text-transparent bg-clip-text">
+          <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 bg-gradient-to-r from-purple-400 to-pink-400 inline-block text-transparent bg-clip-text">
             AI Embeddings
           </h1>
-          <p className="text-gray-300 max-w-2xl">
+          <p className="text-sm sm:text-base text-gray-300 max-w-2xl">
             Upload your AI Embedding Merger for AI processing. Our system will analyze and train on your content,
             making it searchable and ready for intelligent interactions.
           </p>
         </motion.div>
+
         <EmbeddingConverter/>
       </motion.div>
     </div>

@@ -163,6 +163,7 @@ const NeuralBackground = () => {
 
 
 const ChatPage = () => {
+    const router = useRouter();
  
   return (
     <div className="min-h-screen relative overflow-hidden text-white">
