@@ -668,19 +668,19 @@ const PDFProcessor = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 rounded-md p-3">
                       <div className="text-sm">
                         <div className="text-gray-500">Pages</div>
-                        <div className="font-medium">{processedData[file.name].stats.pageCount}</div>
+                        <div className="font-medium text-black">{processedData[file.name].stats.pageCount}</div>
                       </div>
                       <div className="text-sm">
                         <div className="text-gray-500">Words</div>
-                        <div className="font-medium">{processedData[file.name].stats.wordCount.toLocaleString()}</div>
+                        <div className="font-medium text-black">{processedData[file.name].stats.wordCount.toLocaleString()}</div>
                       </div>
                       <div className="text-sm">
                         <div className="text-gray-500">Chunks</div>
-                        <div className="font-medium">{processedData[file.name].stats.chunkCount}</div>
+                        <div className="font-medium text-black">{processedData[file.name].stats.chunkCount}</div>
                       </div>
                       <div className="text-sm">
                         <div className="text-gray-500">Avg. Chunk</div>
-                        <div className="font-medium">{processedData[file.name].stats.averageChunkSize} words</div>
+                        <div className="font-medium text-black">{processedData[file.name].stats.averageChunkSize} words</div>
                       </div>
                     </div>
 
