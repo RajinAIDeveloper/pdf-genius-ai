@@ -189,7 +189,7 @@ const EmbeddingConverter = () => {
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-        <p className="text-lg mb-2 hover:text-black">Click to upload JSON files</p>
+        <p className="text-lg mb-2">Click to upload JSON files</p>
         <p className="text-sm text-gray-500">Export files from PDF processor first</p>
         <input
           type="file"
@@ -205,7 +205,7 @@ const EmbeddingConverter = () => {
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Processing...</span>
-            <span className="text-sm text-white">{progress}%</span>
+            <span className="text-sm text-gray-500">{progress}%</span>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
@@ -245,12 +245,12 @@ const EmbeddingConverter = () => {
           <h4 className="text-sm font-medium">Debug Log</h4>
           <button
             onClick={debugVectorStore}
-            className="text-xs px-2 py-1 bg-gray-200 rounded text-black hover:bg-gray-300"
+            className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
           >
             Debug Store
           </button>
         </div>
-        <div className="text-xs text-black font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+        <div className="text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
           {debug.map((log, i) => (
             <div key={i} className="py-1">{log}</div>
           ))}

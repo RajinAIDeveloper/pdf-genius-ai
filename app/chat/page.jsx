@@ -1,10 +1,15 @@
-'use client'
-import React, { useEffect, useRef } from 'react';
+'use client';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
-import { Brain, FileText, Database, MessageSquare, Combine } from 'lucide-react';
+import { FileText, Upload, ArrowRight, ChevronLeft, Settings, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
+import { Button } from '@/components/ui/button';
+
+import GeminiChat from '@/components/GeminiChat';
+
+
+// Reuse the NeuralBackground component from HomePage
 const NeuralBackground = () => {
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
@@ -140,124 +145,68 @@ const NeuralBackground = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0 -z-10">
+    <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(to bottom right, #1e1b4b, #4c1d95, #1e1b4b)' }}
+        className="absolute min-w-full min-h-full"
+        style={{ 
+          background: 'linear-gradient(to bottom right, #1e1b4b, #4c1d95, #1e1b4b)',
+          width: '100%',
+          height: '100%'
+        }}
       />
       <div className="absolute inset-0 backdrop-blur-sm" />
     </div>
   );
 };
 
-const FeatureCard = ({ icon: Icon, title, description, route }) => {
-  const router = useRouter();
-  const controls = useAnimationControls();
 
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => router.push(route)}
-    >
-      <Card className="relative overflow-hidden h-full bg-white/5 border-purple-500/20 backdrop-blur-lg hover:bg-white/10 transition-all duration-300 cursor-pointer group">
-        <motion.div
-          className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-purple-500/10"
-          whileHover={{ scale: 1.2 }}
-        />
-        <CardHeader>
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Icon className="h-12 w-12 text-purple-400 mb-4 group-hover:text-purple-300" />
-          </motion.div>
-          <CardTitle className="text-white">{title}</CardTitle>
-          <CardDescription className="text-gray-300">{description}</CardDescription>
-        </CardHeader>
-      </Card>
-    </motion.div>
-  );
-};
 
-const HomePage = () => {
-  const features = [
-    {
-      icon: FileText,
-      title: "PDF Training",
-      description: "Upload and process your PDF documents with advanced AI training capabilities",
-      route: "/training"
-    },
-    {
-      icon: Database,
-      title: "Vector AI Embeddings",
-      description: "Generate powerful vector embeddings from your documents for enhanced search and analysis",
-      route: "/embeddings"
-    },
-    {
-      icon: Combine,
-      title: "Embeddings Merger",
-      description: "Combine and optimize multiple embeddings for comprehensive knowledge integration",
-      route: "/merger"
-    },
-    {
-      icon: MessageSquare,
-      title: "AI Chat Interface",
-      description: "Interact with your processed documents through an intelligent chat interface",
-      route: "/chat"
-    }
-  ];
-
+const ChatPage = () => {
+ 
   return (
     <div className="min-h-screen relative overflow-hidden text-white">
       <NeuralBackground />
       
       <motion.div 
-        className="container mx-auto px-4 py-16 relative"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        className="container mx-auto px-4 py-8 relative"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
         <motion.div 
-          className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
+          className="mb-8 flex items-center"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <motion.h1 
-            className="text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 inline-block text-transparent bg-clip-text"
-            whileHover={{ scale: 1.05 }}
+          <Button
+            variant="ghost"
+            className="text-gray-300"
+            onClick={() => router.push('/')}
           >
-            PDF Genius AI
-          </motion.h1>
-          <motion.p 
-            className="text-xl text-gray-300 max-w-2xl mx-auto"
-          >
-            Transform your documents into intelligent, searchable knowledge bases with cutting-edge AI technology
-          </motion.p>
+            <ChevronLeft className="h-5 w-5 mr-2" />
+            Back to Home
+          </Button>
         </motion.div>
 
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
-          {features.map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 * (index + 3), duration: 0.8 }}
-            >
-              <FeatureCard {...feature} />
-            </motion.div>
-          ))}
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 inline-block text-transparent bg-clip-text">
+            AI Chat
+          </h1>
+          <p className="text-gray-300 max-w-2xl">
+            Our system will analyze and provide intelligent interactions.
+          </p>
         </motion.div>
+        <GeminiChat/>
       </motion.div>
     </div>
   );
 };
 
-export default HomePage;
+export default ChatPage;
